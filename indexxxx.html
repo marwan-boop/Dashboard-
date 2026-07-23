@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>لوحة التحكم المستقلة - Admin Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <style> body { font-family: 'Tajawal', sans-serif; } </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen p-4 md:p-8">
+
+  <div class="max-w-7xl mx-auto space-y-8">
+    <header class="flex flex-col md:flex-row justify-between items-start md:items-center bg-slate-900 p-6 rounded-3xl border border-slate-800 gap-4 shadow-xl">
+      <div>
+        <h1 class="text-2xl font-black text-blue-400">👑 لوحة التحكم المستقلة (Admin Dashboard)</h1>
+        <p class="text-slate-400 text-xs mt-1">رابط منفصل تماماً عن التطبيق ديال المستخدمين</p>
+      </div>
+      <button onclick="loadAdminData()" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-2xl text-sm transition shadow-lg">
+        🔄 تحديث البيانات
+      </button>
+    </header>
+
+    <!-- إحصائيات -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div class="bg-slate-900 p-6 rounded-3xl border border-slate-800">
+        <span class="text-slate-400 text-xs font-bold">مجموع المستخدمين</span>
+        <div id="totalUsers" class="text-4xl font-black text-blue-400 mt-2">0</div>
+      </div>
+      <div class="bg-slate-900 p-6 rounded-3xl border border-slate-800">
+        <span class="text-slate-400 text-xs font-bold">مجموع العمال</span>
+        <div id="totalWorkers" class="text-4xl font-black text-emerald-400 mt-2">0</div>
+      </div>
+      <div class="bg-slate-900 p-6 rounded-3xl border border-slate-800">
+        <span class="text-slate-400 text-xs font-bold">إجمالي السجلات</span>
+        <div id="totalLogs" class="text-4xl font-black text-amber-400 mt-2">0</div>
+      </div>
+    </div>
+
+    <!-- جدول المستخدمين -->
+    <div class="bg-slate-900 p-6 rounded-3xl border border-slate-800 space-y-4">
+      <h2 class="text-lg font-bold border-b border-slate-800 pb-3">👤 حسابات المستخدمين</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-right text-sm">
+          <thead class="bg-slate-950 text-slate-400 text-xs border-b border-slate-800">
+            <tr>
+              <th class="p-3.5">معرف الحساب (Owner ID)</th>
+              <th class="p-3.5">الحالة</th>
+              <th class="p-3.5">عدد العمال</th>
+              <th class="p-3.5">عدد السجلات</th>
+            </tr>
+          </thead>
+          <tbody id="usersTableBody" class="divide-y divide-slate-800/60">
+            <tr><td colspan="4" class="p-4 text-center text-slate-500">جاري التحميل...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- جدول العمال -->
+    <div class="bg-slate-900 p-6 rounded-3xl border border-slate-800 space-y-4">
+      <h2 class="text-lg font-bold border-b border-slate-800 pb-3">👷 لائحة جميع العمال</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-right text-sm">
+          <thead class="bg-slate-950 text-slate-400 text-xs border-b border-slate-800">
+            <tr>
+              <th class="p-3.5">اسم العامل</th>
+              <th class="p-3.5">الصورة</th>
+              <th class="p-3.5">تابع للمستخدم</th>
+              <th class="p-3.5">أيام الاشتغال</th>
+            </tr>
+          </thead>
+          <tbody id="workersTableBody" class="divide-y divide-slate-800/60">
+            <tr><td colspan="4" class="p-4 text-center text-slate-500">جاري التحميل...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBU-gtVFbI7QEGsZxnESkShv4DlV81o3NQ",
+      authDomain: "workerapp-30908.firebaseapp.com",
+      projectId: "workerapp-30908",
+      storageBucket: "workerapp-30908.firebasestorage.app",
+      messagingSenderId: "211170585199",
+      appId: "1:211170585199:web:c96dd78e16a914c5a5fb9a"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    async function loadAdminData() {
+      try {
+        const workersSnap = await getDocs(collection(db, "workers"));
+        const logsSnap = await getDocs(collection(db, "logs"));
+
+        const workers = [];
+        workersSnap.forEach(doc => workers.push({ id: doc.id, ...doc.data() }));
+
+        const logs = [];
+        logsSnap.forEach(doc => logs.push({ id: doc.id, ...doc.data() }));
+
+        document.getElementById('totalWorkers').innerText = workers.length;
+        document.getElementById('totalLogs').innerText = logs.length;
+
+        const usersMap = {};
+        workers.forEach(w => {
+          if (!usersMap[w.ownerId]) usersMap[w.ownerId] = { workerCount: 0, logCount: 0 };
+          usersMap[w.ownerId].workerCount++;
+        });
+
+        logs.forEach(l => {
+          const matchedWorker = workers.find(w => w.id === l.workerId);
+          if (matchedWorker && usersMap[matchedWorker.ownerId]) {
+            usersMap[matchedWorker.ownerId].logCount++;
+          }
+        });
+
+        const userKeys = Object.keys(usersMap);
+        document.getElementById('totalUsers').innerText = userKeys.length;
+
+        const usersTable = document.getElementById('usersTableBody');
+        usersTable.innerHTML = userKeys.length === 0 ? `<tr><td colspan="4" class="p-4 text-center text-slate-500">لا يوجد مستخدمون</td></tr>` : "";
+        
+        userKeys.forEach(ownerId => {
+          usersTable.innerHTML += `
+            <tr>
+              <td class="p-3.5 font-mono text-slate-300 text-xs">${ownerId}</td>
+              <td class="p-3.5 text-blue-400 font-bold">نشط</td>
+              <td class="p-3.5"><span class="bg-emerald-500/10 text-emerald-400 px-2.5 py-1 rounded-lg text-xs font-bold">${usersMap[ownerId].workerCount} عمال</span></td>
+              <td class="p-3.5"><span class="bg-amber-500/10 text-amber-400 px-2.5 py-1 rounded-lg text-xs font-bold">${usersMap[ownerId].logCount} سجلات</span></td>
+            </tr>`;
+        });
+
+        const workersTable = document.getElementById('workersTableBody');
+        workersTable.innerHTML = workers.length === 0 ? `<tr><td colspan="4" class="p-4 text-center text-slate-500">لا يوجد عمال</td></tr>` : "";
+
+        workers.forEach(w => {
+          const workedDays = logs.filter(l => l.workerId === w.id && l.status === "اشتغل").length;
+          let imgTag = `<div class="w-8 h-8 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center font-bold text-xs">${w.name.charAt(0)}</div>`;
+          if (w.avatar) imgTag = `<img src="${w.avatar}" class="w-8 h-8 rounded-full object-cover border border-slate-700">`;
+
+          workersTable.innerHTML += `
+            <tr>
+              <td class="p-3.5 font-bold text-white">${w.name}</td>
+              <td class="p-3.5">${imgTag}</td>
+              <td class="p-3.5 font-mono text-xs text-slate-400">${w.ownerId.substring(0, 10)}...</td>
+              <td class="p-3.5"><span class="bg-blue-500/10 text-blue-400 px-2.5 py-1 rounded-lg text-xs font-bold">${workedDays} أيام</span></td>
+            </tr>`;
+        });
+
+      } catch (error) {
+        console.error(error);
+        alert("خطأ في جلب البيانات!");
+      }
+    }
+
+    window.loadAdminData = loadAdminData;
+    loadAdminData();
+  </script>
+</body>
+</html>
